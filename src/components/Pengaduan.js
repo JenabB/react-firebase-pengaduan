@@ -3,9 +3,8 @@ import moment from "moment";
 import { db, storage } from "../firebase";
 
 const Pengaduan = () => {
-  const allInputs = { imgUrl: "" };
-  const [imageAsFile, setImageAsFile] = useState("");
-  const [imageAsUrl, setImageAsUrl] = useState(allInputs);
+  const [file, setFile] = useState(null);
+  const [url, setURL] = useState("");
 
   const [pengaduan, setPengaduan] = useState({
     description: "",
@@ -13,62 +12,44 @@ const Pengaduan = () => {
     title: "",
   });
 
-  console.log("file", imageAsFile);
-  console.log("url", imageAsUrl);
-
+  console.log("file", file);
+  console.log("url", url);
+  console.log(pengaduan);
   const { description, sender, title } = pengaduan;
 
   const handleChange = (e) => {
     setPengaduan({ ...pengaduan, [e.target.name]: e.target.value });
+  };
 
-    setImageAsFile(e.target.files && e.target.files[0]);
+  const handleImageChange = (e) => {
+    setFile(e.target.files[0]);
+    const uploadTask = storage.ref(file && `/images/${file.name}`).put(file);
+    uploadTask.on("state_changed", console.log, console.error, () => {
+      storage
+        .ref("images")
+        .child(file.name)
+        .getDownloadURL()
+        .then((url) => {
+          setFile(null);
+          setURL(url);
+        });
+    });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setPengaduan({ ...pengaduan });
 
-    if (imageAsFile === "") {
-      console.error(`not an image, the image file is a ${typeof imageAsFile}`);
-    }
-
-    const uploadTask = storage
-      .ref(imageAsFile && `/images/${imageAsFile.name}`)
-      .put(imageAsFile);
-
-    uploadTask.on(
-      "state_changed",
-      (snapShot) => {
-        console.log(snapShot);
-      },
-      (err) => {
-        console.log(err);
-      },
-      () => {
-        storage
-          .ref("images")
-          .child(imageAsFile.name)
-          .getDownloadURL()
-          .then((fireBaseUrl) => {
-            setImageAsUrl((prevObject) => ({
-              ...prevObject,
-              imgUrl: fireBaseUrl,
-            }));
-          });
-      }
-    );
-
     db.collection("pengaduan").add({
       created: moment().format("MMMM Do YYYY, h:mm:ss a"),
       approved: false,
       description: description,
-      image: imageAsUrl.imgUrl,
+      image: url,
       likes: 0,
       sender: sender,
       title: title,
     });
     setPengaduan({ description: "", sender: "", title: "" });
-    setImageAsFile("");
   };
 
   return (
@@ -79,7 +60,7 @@ const Pengaduan = () => {
           type="file"
           name="image"
           placeholder="image"
-          onChange={handleChange}
+          onChange={handleImageChange}
         />
         <input
           type="text"
